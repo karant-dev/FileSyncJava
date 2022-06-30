@@ -1,0 +1,10 @@
+# Don't track content of these folders
+out/
+clientFileHolder/
+serverFileHolder/
+.idea/
+
+
+# Compiled source #
+###################
+*.class
