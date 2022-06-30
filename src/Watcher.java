@@ -6,12 +6,14 @@ import java.util.Set;
 public class Watcher extends Thread {
 
     Path baseDir;
-    WatchService watchService = null;
+    WatchService watchService;
     WatchKey watchKey = null;
 
     // Sets for files Create/Modify and Delete at the other end
-    Set<String> filesToSend = new HashSet<>();
-    Set<String> filesToDelete = new HashSet<>();
+    static Set<String> filesToSend = new HashSet<>();
+    static Set<String> filesToDelete = new HashSet<>();
+    static final Object filesToSendLock = new Object();
+    static final Object filesToDeleteLock = new Object();
 
     public Watcher(String directoryPath) {
         baseDir = Paths.get(directoryPath);
@@ -34,6 +36,7 @@ public class Watcher extends Thread {
                     StandardWatchEventKinds.ENTRY_MODIFY,
                     StandardWatchEventKinds.ENTRY_DELETE);
         } catch (IOException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
 
@@ -41,26 +44,45 @@ public class Watcher extends Thread {
             for (WatchEvent<?> event : watchKey.pollEvents()) {
                 Path fileNamePath = (Path) event.context();
                 String fileName = fileNamePath.toString();
+                System.out.println(event.kind() + " " + fileName);
+                if (fileName.startsWith("~") || fileName.endsWith(".tmp")) {
+                    continue;
+                }
                 if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE || event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
-                    filesToSend.add(fileName);
+                    synchronized (filesToSendLock) {
+                        filesToSend.add(fileName);
+                        System.out.println(filesToSend);
+                    }
                 } else {
-                    filesToDelete.add(fileName);
+                    synchronized (filesToDeleteLock) {
+                        filesToDelete.add(fileName);
+                    }
+                }
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
                 }
             }
         }
     }
 
     public Set<String> getFilenamesToSend() {
-        Set<String> tempFilesToSend = new HashSet<String>();
-        tempFilesToSend.addAll(filesToSend);
-        filesToSend.clear();
+        Set<String> tempFilesToSend;
+        synchronized (filesToSendLock) {
+            tempFilesToSend = new HashSet<>(filesToSend);
+//            filesToSend.clear();
+        }
         return tempFilesToSend;
     }
 
     public Set<String> getFilenamesToDelete() {
-        Set<String> tempFilesToDelete = new HashSet<String>();
-        tempFilesToDelete.addAll(filesToDelete);
-        filesToDelete.clear();
+        Set<String> tempFilesToDelete;
+        synchronized (filesToDeleteLock) {
+            tempFilesToDelete = new HashSet<>(filesToDelete);
+//            filesToDelete.clear();
+        }
         return tempFilesToDelete;
     }
 }

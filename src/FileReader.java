@@ -5,6 +5,7 @@ public class FileReader extends Thread {
     private final String threadName = "FileReader";
     private PacketBoundedBufferMonitor bufferMonitor;
     private String fileName;
+    boolean hadError = false;
 
 
     public FileReader() {
@@ -18,12 +19,12 @@ public class FileReader extends Thread {
     public void run() {
         try {
             File file = new File(Constants.CLIENT_FILE_ROOT + fileName);
-            if(file.isFile()) {
+            if(file.canRead()) {
                 // TODO User file.delete(); to delete needed files
                 FileInputStream in = new FileInputStream(file);
                 boolean flagFileHead = true;
                 int packetIndex = 0;
-                int readSize = 0;
+                int readSize;
 
                 System.out.println(">> Begin to read a file" + Constants.CRLF);
                 while (true) {
@@ -60,6 +61,7 @@ public class FileReader extends Thread {
             }
         } catch (Exception e) {
             e.printStackTrace();
+            hadError = true;
         }
     }
 

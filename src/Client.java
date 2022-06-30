@@ -22,9 +22,15 @@ public class Client {
 
     public static void main(String[] args) {
         watch();
+        Set<String> filesToSend;
+        Set<String> filesToDelete;
         do {
-            Set<String> filesToSend = watcher.getFilenamesToSend();
-            Set<String> filesToDelete = watcher.getFilenamesToDelete();
+            synchronized (watcher.filesToSendLock) {
+                filesToSend = watcher.filesToSend;
+            }
+            synchronized (watcher.filesToDeleteLock) {
+                filesToDelete = watcher.filesToDelete;
+            }
 
             for (String fileName : filesToSend) {
                 try {
@@ -54,7 +60,15 @@ public class Client {
                     try {
                         packetSender.join();
                         fileReader.join();
+                        // watcher.join();
+                        if(!fileReader.hadError) {
+                            synchronized (watcher.filesToSendLock) {
+                                watcher.filesToSend.remove(fileName);
+                            }
+                        }
                     } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        throw e;
                     }
 
                 } catch (Exception e) {
@@ -68,11 +82,11 @@ public class Client {
     /**
      * get the port number, through which the server will receive data
      *
-     * @param tcpSocket
-     * @param action
-     * @param fileName
-     * @param udpPort,  the port number that the client will send data
-     * @return
+     * @param tcpSocket Instance of Socket class
+     * @param action The action Client has requested - Ex: SEND REQUEST, DELETE REQUEST
+     * @param fileName Name of the file
+     * @param udpPort  the port number that the client will send data
+     * @return Returns the UDP port of the Server
      */
     public static int getPortFromServer(Socket tcpSocket, String action, String fileName, int udpPort) {
         int serverPort = 0;
