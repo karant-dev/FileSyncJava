@@ -1,9 +1,10 @@
+import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Scanner;
+import java.util.*;
 
 public class Server {
     static ServerSocket serverSocket = null;
@@ -14,6 +15,7 @@ public class Server {
     public static void main(String[] args) {
 
         try {
+            List<String> filesToDelete = new ArrayList<>();
             try {
                 serverSocket = new ServerSocket(Constants.SERVER_TCP_PORT);
             } catch (IOException ioEx) {
@@ -35,26 +37,54 @@ public class Server {
 
                     // Get actionType from the received data
                     String line = inputSocket.nextLine();
-                    String actionType = "";
                     int clientUDPPort = 0;
-                    while (!line.equals("STOP")) {
-                        if (line.isEmpty()) {
+                    String actionType = "";
+
+                    // TODO Get filesToDelete
+                    if (line.startsWith("DELETE REQUEST")) {
+                        while (!line.equals("DELETE STOP")) {
+                            if (line.isEmpty()) {
+                                line = inputSocket.nextLine();
+                                continue;
+                            }
+                            if (line.startsWith("DELETE REQUEST")) {
+                                System.out.println(">> Request: " + line + Constants.CRLF);
+                                actionType = "DELETE REQUEST";
+                                filesToDelete = Arrays.asList(line.split("#"));
+                                break;
+                            }
                             line = inputSocket.nextLine();
-                            continue;
                         }
-                        if (line.startsWith("SEND REQUEST")) {
-                            System.out.println(">> Request: " + line + Constants.CRLF);
-                            actionType = "SEND REQUEST";
-                            clientUDPPort = Integer.parseInt(line.split("#")[2].strip());
-                            break;
-                        }
-                        line = inputSocket.nextLine();
                     }
 
-                    if (actionType.equals("SEND REQUEST")) {
-                        receiveHandle(client, outputSocket, clientUDPPort);
+                    if (actionType.equals("DELETE REQUEST")) {
+                        deleteFiles(filesToDelete);
+                        // TODO Create function to delete files and call here
+                        // TODO Empty filesToDelete
                     }
 
+                    // line = inputSocket.nextLine();
+                    actionType = "";
+
+                    if(!line.startsWith("DELETE REQUEST")) {
+                        while (!line.equals("STOP")) {
+                            if (line.isEmpty()) {
+                                line = inputSocket.nextLine();
+                                continue;
+                            }
+                            if (line.startsWith("SEND REQUEST")) {
+                                System.out.println(">> Request: " + line + Constants.CRLF);
+                                actionType = "SEND REQUEST";
+                                clientUDPPort = Integer.parseInt(line.split("#")[2].strip());
+                                break;
+                            }
+                            line = inputSocket.nextLine();
+                        }
+
+                        if (actionType.equals("SEND REQUEST")) {
+                            receiveHandle(client, outputSocket, clientUDPPort);
+                        }
+                    }
 
                 } catch (IOException io) {
                     System.out.println(">> Fail to listen to requests!");
@@ -67,9 +97,22 @@ public class Server {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
+    public static void deleteFiles(List<String> filesToDelete) {
+        for (String fileName : filesToDelete) {
+            if (fileName.equals("DELETE REQUEST")) { continue; }
+            try {
+                File file = new File(Constants.SERVER_FILE_ROOT + fileName);
+                if (file.canWrite()) {
+                    file.delete();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+        }
+    }
 
     public static void receiveHandle(Socket socket, PrintWriter outputSocket, int senderPort) {
         try {

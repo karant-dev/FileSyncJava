@@ -10,8 +10,8 @@ public class Watcher extends Thread {
     WatchKey watchKey = null;
 
     // Sets for files Create/Modify and Delete at the other end
-    static Set<String> filesToSend = new HashSet<>();
-    static Set<String> filesToDelete = new HashSet<>();
+    static HashSet<String> filesToSend = new HashSet<>();
+    static HashSet<String> filesToDelete = new HashSet<>();
     static final Object filesToSendLock = new Object();
     static final Object filesToDeleteLock = new Object();
 
@@ -26,6 +26,13 @@ public class Watcher extends Thread {
 
     public Watcher() {
         this(Constants.CLIENT_FILE_ROOT);
+    }
+
+    public Watcher(String directoryPath, HashSet<String> initialFilesToSend) {
+        this(directoryPath);
+        synchronized (filesToSendLock) {
+            filesToSend.addAll(initialFilesToSend);
+        }
     }
 
     public void run() {
@@ -45,6 +52,7 @@ public class Watcher extends Thread {
                 Path fileNamePath = (Path) event.context();
                 String fileName = fileNamePath.toString();
                 System.out.println(event.kind() + " " + fileName);
+                // Ignore temporary files
                 if (fileName.startsWith("~") || fileName.endsWith(".tmp")) {
                     continue;
                 }

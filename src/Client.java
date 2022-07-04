@@ -2,10 +2,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.Set;
+import java.util.*;
 
 
 public class Client {
@@ -16,7 +13,17 @@ public class Client {
     }
 
     public static void watch() {
-        watcher = new Watcher(Constants.CLIENT_FILE_ROOT);
+        HashSet<String> initFilesToSend = new HashSet<String>();
+        File directory = new File(Constants.CLIENT_FILE_ROOT);
+        File[] initFileList = directory.listFiles();
+        if (initFileList != null) {
+            for (File file : initFileList) {
+                if (file.isFile() && !file.getName().startsWith("~") && !file.getName().endsWith(".tmp")) {
+                    initFilesToSend.add(file.getName());
+                }
+            }
+        }
+        watcher = new Watcher(Constants.CLIENT_FILE_ROOT, initFilesToSend);
         watcher.start();
     }
 
@@ -24,6 +31,7 @@ public class Client {
         watch();
         Set<String> filesToSend;
         Set<String> filesToDelete;
+        String action = "";
         do {
             synchronized (watcher.filesToSendLock) {
                 filesToSend = watcher.filesToSend;
@@ -32,6 +40,25 @@ public class Client {
                 filesToDelete = watcher.filesToDelete;
             }
 
+            // Deletion part
+            if(!filesToDelete.isEmpty()) {
+                InetAddress server;
+                try {
+                    server = InetAddress.getByName("localhost");
+                    action = "DELETE REQUEST";
+                    try (Socket socket = new Socket(server, Constants.SERVER_TCP_PORT)) {
+                        sendFileNamesToDelete(socket, filesToDelete, action);
+                        synchronized (watcher.filesToDeleteLock) {
+                            watcher.filesToDelete.clear();
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    throw new RuntimeException(e);
+                }
+            }
+
+            // Create/Modify part
             for (String fileName : filesToSend) {
                 try {
                     File file = new File(Constants.CLIENT_FILE_ROOT + fileName);
@@ -41,7 +68,7 @@ public class Client {
                     Socket tcpSocket = new Socket(serverIp, Constants.SERVER_TCP_PORT);
 
                     // Get the port number from the server that will receive data through UDP datagrams
-                    String action = "SEND REQUEST";
+                    action = "SEND REQUEST";
                     int serverPort = getPortFromServer(tcpSocket, action, fileName, Constants.CLIENT_UDP_PORT);
                     if (serverPort == 0) {
                         return;
@@ -78,6 +105,20 @@ public class Client {
         } while (true);
     }// end of main
 
+    public static void sendFileNamesToDelete(Socket socket, Set<String> filesToDelete, String action) {
+        try {
+            String fileNames = "";
+            PrintWriter outputSocket = new PrintWriter(socket.getOutputStream(), true);
+            for (String fileName : filesToDelete) {
+                fileNames += fileName + "#";
+            }
+            outputSocket.println(action + "#" + fileNames + Constants.CRLF + "DELETE STOP");
+            socket.close();
+            outputSocket.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * get the port number, through which the server will receive data
