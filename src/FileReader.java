@@ -6,21 +6,24 @@ public class FileReader extends Thread {
     private PacketBoundedBufferMonitor bufferMonitor;
     private String fileName;
     boolean hadError = false;
+    File file;
+    String fileRoot;
 
 
     public FileReader() {
     }
 
-    public FileReader(PacketBoundedBufferMonitor bm, String fileName) {
+    public FileReader(PacketBoundedBufferMonitor bm, String fileName, String fileRoot) {
         this.bufferMonitor = bm;
         this.fileName = fileName;
+        this.fileRoot = fileRoot;
     }
 
     public void run() {
         try {
-            File file = new File(Constants.CLIENT_FILE_ROOT + fileName);
+            file = new File(fileRoot + fileName);
             Thread.sleep(500);
-            while(!file.canWrite()) { }
+            while(!file.canWrite());
             if(file.canRead()) {
                 try (FileInputStream in = new FileInputStream(file)) {
                     boolean flagFileHead = true;

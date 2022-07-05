@@ -5,16 +5,16 @@ import java.net.Socket;
 import java.util.*;
 
 
-public class Client {
+public class ClientA {
 
     static Watcher watcher;
 
-    public Client() {
+    public ClientA() {
     }
 
     public static void watch() {
-        HashSet<String> initFilesToSend = new HashSet<String>();
-        File directory = new File(Constants.CLIENT_FILE_ROOT);
+        HashSet<String> initFilesToSend = new HashSet<>();
+        File directory = new File(Constants.CLIENT_A_FILE_ROOT);
         File[] initFileList = directory.listFiles();
         if (initFileList != null) {
             for (File file : initFileList) {
@@ -23,7 +23,7 @@ public class Client {
                 }
             }
         }
-        watcher = new Watcher(Constants.CLIENT_FILE_ROOT, initFilesToSend);
+        watcher = new Watcher(Constants.CLIENT_A_FILE_ROOT, initFilesToSend);
         watcher.start();
     }
 
@@ -31,7 +31,7 @@ public class Client {
         watch();
         Set<String> filesToSend;
         Set<String> filesToDelete;
-        String action = "";
+        String action;
         do {
             synchronized (watcher.filesToSendLock) {
                 filesToSend = watcher.filesToSend;
@@ -46,7 +46,7 @@ public class Client {
                 try {
                     server = InetAddress.getByName("localhost");
                     action = "DELETE REQUEST";
-                    try (Socket socket = new Socket(server, Constants.SERVER_TCP_PORT)) {
+                    try (Socket socket = new Socket(server, Constants.SERVER_TCP_PORT_RCV_FROM_A)) {
                         sendFileNamesToDelete(socket, filesToDelete, action);
                         synchronized (watcher.filesToDeleteLock) {
                             watcher.filesToDelete.clear();
@@ -61,15 +61,15 @@ public class Client {
             // Create/Modify part
             for (String fileName : filesToSend) {
                 try {
-                    File file = new File(Constants.CLIENT_FILE_ROOT + fileName);
+                    File file = new File(Constants.CLIENT_A_FILE_ROOT + fileName);
                     if (!file.exists()) return;
 
                     InetAddress serverIp = InetAddress.getByName("localhost");
-                    Socket tcpSocket = new Socket(serverIp, Constants.SERVER_TCP_PORT);
+                    Socket tcpSocket = new Socket(serverIp, Constants.SERVER_TCP_PORT_RCV_FROM_A);
 
                     // Get the port number from the server that will receive data through UDP datagrams
                     action = "SEND REQUEST";
-                    int serverPort = getPortFromServer(tcpSocket, action, fileName, Constants.CLIENT_UDP_PORT);
+                    int serverPort = getPortFromServer(tcpSocket, action, fileName, Constants.CLIENT_A_UDP_PORT_SEND_TO_SERVER);
                     if (serverPort == 0) {
                         return;
                     }
@@ -78,10 +78,10 @@ public class Client {
                     PacketBoundedBufferMonitor bufferMonitor = new PacketBoundedBufferMonitor(Constants.MONITOR_BUFFER_SIZE);
                     InetAddress senderIp = InetAddress.getByName("localhost");
 
-                    PacketSender packetSender = new PacketSender(bufferMonitor, senderIp, Constants.CLIENT_UDP_PORT, serverIp, serverPort);
+                    PacketSender packetSender = new PacketSender(bufferMonitor, senderIp, Constants.CLIENT_A_UDP_PORT_SEND_TO_SERVER, serverIp, serverPort);
                     packetSender.start();
 
-                    FileReader fileReader = new FileReader(bufferMonitor, fileName);
+                    FileReader fileReader = new FileReader(bufferMonitor, fileName, Constants.CLIENT_A_FILE_ROOT);
                     fileReader.start();
 
                     try {

@@ -25,7 +25,7 @@ public class Watcher extends Thread {
     }
 
     public Watcher() {
-        this(Constants.CLIENT_FILE_ROOT);
+        this(Constants.CLIENT_A_FILE_ROOT);
     }
 
     public Watcher(String directoryPath, HashSet<String> initialFilesToSend) {
@@ -66,12 +66,7 @@ public class Watcher extends Thread {
                         filesToDelete.add(fileName);
                     }
                 }
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    throw new RuntimeException(e);
-                }
+                Helper.sleep(100);
             }
         }
     }

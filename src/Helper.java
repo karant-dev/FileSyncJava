@@ -22,9 +22,7 @@ public class Helper {
      */
     public static byte[] get4Bytes(byte[] bytes2) {
         byte[] get = new byte[4];
-        for (int i = 0; i < 4; i++) {
-            get[i] = bytes2[i];
-        }
+        System.arraycopy(bytes2, 0, get, 0, 4);
         return get;
     }
 
@@ -56,25 +54,12 @@ public class Helper {
                 (b[0] & 0xFF) << 24;
     }
 
-
-    /**
-     * takes file path as input and returns true if path leads to valid directory
-     *
-     * @param path
-     * @return
-     */
-    public static boolean checkPath(String path) {
-        boolean isValid = false;
+    public static void sleep(int timeout) {
         try {
-            File test = new File(path); // throws exception if invalid path
-            if (test.isFile()) // false if it's file, not folder
-                isValid = false;
-            else if (test.isDirectory()) // return true only if path leads to valid directory
-                isValid = true;
-        } catch (Exception e) {
-            isValid = false;
+            Thread.sleep(timeout);
+        } catch (InterruptedException e) {
             e.printStackTrace();
+            throw new RuntimeException(e);
         }
-        return isValid;
     }
 }
